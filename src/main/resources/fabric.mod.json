@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "vaw-mca",
+  "version": "${version}",
+  "name": "Villagers at Work: MCA Reborn extension",
+  "description": "Connects Villagers at Work to MCA Reborn: guards draw gear from village armories, and villagers explain what they need.",
+  "authors": ["Mohammed Sameer"],
+  "contact": {
+    "sources": "https://github.com/msameer/villagers-at-work-mca"
+  },
+  "license": "GPL-3.0-or-later",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      {
+        "adapter": "kotlin",
+        "value": "dev.msameer.vaw.mca.VawMca"
+      }
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=1.14.1",
+    "vaw": ">=0.1.0- <1.0.0"
+  }
+}
