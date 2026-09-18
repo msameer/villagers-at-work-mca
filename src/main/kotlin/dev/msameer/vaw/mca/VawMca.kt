@@ -15,18 +15,40 @@
  */
 package dev.msameer.vaw.mca
 
+import dev.msameer.vaw.api.GuardProvider
+import dev.msameer.vaw.api.ReserveProvider
 import dev.msameer.vaw.api.VawApi
+import net.conczin.mca.entity.VillagerEntityMCA
 import net.fabricmc.api.ModInitializer
+import net.minecraft.tags.ItemTags
+import net.minecraft.world.entity.npc.villager.Villager
+import net.minecraft.world.item.ItemStack
 import org.slf4j.LoggerFactory
 
 /**
- * The extension entrypoint. Empty for now: it proves the extension builds against the published
- * api alone. The guard provider and the MCA dependency arrive together, later.
+ * The extension entrypoint. Registering the guard provider is what tells the core that guards
+ * exist, which switches on armories and the three guard-only makers (Technical Reference §12.3).
  */
 object VawMca : ModInitializer {
     private val LOGGER = LoggerFactory.getLogger("vaw/mca")
 
+    /** MCA's guards: swordsmen and archers (§12.2). */
+    private object McaGuards : GuardProvider {
+        override val id: String = "mca"
+    }
+
+    /**
+     * §16.1: MCA villagers breed by MCA's own rules, not by sharing food, so they keep no food back.
+     * Seed is still kept, as a vanilla villager keeps it. Vanilla villagers get the core's default.
+     */
+    private object McaReserve : ReserveProvider {
+        override fun reserves(villager: Villager, stack: ItemStack): Boolean? =
+            if (villager is VillagerEntityMCA) stack.`is`(ItemTags.VILLAGER_PLANTABLE_SEEDS) else null
+    }
+
     override fun onInitialize() {
-        LOGGER.info("Villagers at Work MCA extension loaded; guard provider registered: {}", VawApi.guardProvider != null)
+        VawApi.registerGuardProvider(McaGuards)
+        VawApi.registerReserveProvider(McaReserve)
+        LOGGER.info("Villagers at Work MCA extension loaded; guard provider '{}' registered", McaGuards.id)
     }
 }

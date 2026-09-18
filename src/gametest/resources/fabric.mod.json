@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "id": "vaw-mca-test",
+  "version": "0.0.0",
+  "name": "Villagers at Work MCA extension game tests",
+  "environment": "*",
+  "entrypoints": {
+    "fabric-gametest": [
+      "dev.msameer.vaw.mca.test.McaGameTest"
+    ]
+  }
+}

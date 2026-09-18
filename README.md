@@ -6,7 +6,9 @@ MCA Reborn. When installed alongside both mods, it:
 - lets MCA guards draw their gear from village armories instead of being equipped from nowhere, and
 - lets blocked villagers explain in words what they need.
 
-**Status:** early development. The extension currently loads and does nothing.
+**Status:** early development. The extension registers itself as the guard provider, which switches
+on village armories, and gives MCA villagers their own reserve profile: they keep seed, not food.
+Guards drawing their gear from armories is in progress.
 
 ## Why a separate repository
 
@@ -22,7 +24,19 @@ Requires Java 25.
 ```
 
 The Villagers at Work api is resolved from the public Maven repository at
-`https://msameer.github.io/maven/`; no credentials are needed.
+`https://msameer.github.io/maven/`, and MCA Reborn from Modrinth's; no credentials are needed.
+
+### Game tests
+
+Game tests run against the Villagers at Work core jar, which is not published, so they run only
+when you point the build at one:
+
+```bash
+./gradlew runGameTest -PvawCoreJar=/path/to/villagers-at-work-<version>.jar
+```
+
+Without `-PvawCoreJar` the build compiles the extension and skips them, which is what CI does. Add
+`-PvawApiRepository=mavenLocal` to build against an api published locally from the core repository.
 
 ## Licence
 

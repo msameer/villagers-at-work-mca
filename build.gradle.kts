@@ -8,6 +8,7 @@ val loader_version: String by project
 val fabric_api_version: String by project
 val fabric_kotlin_version: String by project
 val vaw_api_version: String by project
+val mca_version: String by project
 val mod_version: String by project
 val maven_group: String by project
 
@@ -28,7 +29,19 @@ repositories {
         name = "VillagersAtWork"
         content { includeGroup("dev.msameer.vaw") }
     }
+    // MCA Reborn, which this extension compiles against and runs with in game tests (§16.1).
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") { name = "Modrinth" } }
+        filter { includeGroup("maven.modrinth") }
+    }
 }
+
+/**
+ * The Villagers at Work core jar, for game tests only: `-PvawCoreJar=<path>`. The core is not
+ * published, so game tests run locally against a jar built in the core repository, and a build
+ * without one (CI) compiles the extension and skips them.
+ */
+val vawCoreJar: String? = providers.gradleProperty("vawCoreJar").orNull
 
 dependencies {
     minecraft("com.mojang:minecraft:$minecraft_version")
@@ -38,6 +51,27 @@ dependencies {
 
     // Provided at runtime by the Villagers at Work core jar, which nests the api.
     compileOnly("dev.msameer.vaw:vaw-api:$vaw_api_version")
+
+    implementation("maven.modrinth:minecraft-comes-alive-reborn:$mca_version")
+
+    if (vawCoreJar != null) {
+        localRuntime(files(vawCoreJar))
+    }
+}
+
+if (vawCoreJar != null) {
+    fabricApi {
+        configureTests {
+            createSourceSet.set(true)
+            modId.set("vaw-mca-test")
+            enableGameTests.set(true)
+            // The user accepted the Minecraft EULA for game-test runs.
+            eula.set(true)
+        }
+    }
+    dependencies {
+        "gametestCompileOnly"("dev.msameer.vaw:vaw-api:$vaw_api_version")
+    }
 }
 
 java {
