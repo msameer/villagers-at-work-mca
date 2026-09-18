@@ -43,6 +43,12 @@ repositories {
  */
 val vawCoreJar: String? = providers.gradleProperty("vawCoreJar").orNull
 
+// The api is a SNAPSHOT that changes with the core. Gradle would otherwise keep one for a day, and CI
+// restores its Gradle cache between runs, so it compiled against an api that was hours old.
+configurations.configureEach {
+    resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:$minecraft_version")
     implementation("net.fabricmc:fabric-loader:$loader_version")
