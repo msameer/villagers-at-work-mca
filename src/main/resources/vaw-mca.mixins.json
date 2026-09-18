@@ -4,7 +4,9 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "EquipmentTaskMixin",
-    "GuardBrainMixin"
+    "GuardBrainMixin",
+    "GuardKillMixin",
+    "GuardLootDropMixin"
   ],
   "injectors": {
     "defaultRequire": 1

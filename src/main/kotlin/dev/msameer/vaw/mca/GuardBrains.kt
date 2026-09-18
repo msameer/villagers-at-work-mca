@@ -21,14 +21,22 @@ import net.conczin.mca.entity.VillagerEntityMCA
 import net.minecraft.world.entity.ai.Brain
 import net.minecraft.world.entity.schedule.Activity
 
-/** Adds the guard self-check to a guard's brain, beside MCA's own guard tasks (§12.2). */
+/** Adds a guard's errands to its brain, beside MCA's own guard tasks: fetching gear (§12.2) and bringing in loot (§16.1). */
 object GuardBrains {
     fun install(villager: VillagerEntityMCA, brain: Brain<*>) {
         if (!villager.isGuard) return
         @Suppress("UNCHECKED_CAST")
-        (brain as Brain<VillagerEntityMCA>).addActivity(Activity.CORE, ImmutableList.of(Pair.of(PRIORITY, FetchGearTask())), emptySet(), emptySet())
+        (brain as Brain<VillagerEntityMCA>).addActivity(
+            Activity.CORE,
+            ImmutableList.of(Pair.of(GEAR, FetchGearTask()), Pair.of(LOOT, DeliverLootTask())),
+            emptySet(),
+            emptySet(),
+        )
     }
 
-    /** After MCA's own equipping (priority 1), before its attack tasks settle a target. */
-    private const val PRIORITY = 1
+    /** Gear first: after MCA's own equipping (priority 1), before its attack tasks settle a target. */
+    private const val GEAR = 1
+
+    /** Loot after gear, so an unarmed guard arms itself before running errands. */
+    private const val LOOT = 2
 }

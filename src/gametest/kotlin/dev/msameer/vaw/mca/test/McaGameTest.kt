@@ -28,7 +28,10 @@ import net.minecraft.gametest.framework.GameTestHelper
 import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.Container
+import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.EquipmentSlot
+import net.minecraft.world.entity.item.ItemEntity
+import net.minecraft.world.phys.AABB
 import net.minecraft.world.entity.ai.memory.MemoryModuleType
 import net.minecraft.world.entity.npc.villager.VillagerProfession
 import net.minecraft.world.item.Item
@@ -224,6 +227,57 @@ class McaGameTest {
             // MCA archers never use arrows up (§19), so the fletcher's stack is not theirs to take.
             helper.assertTrue(containerCount(helper, fletcher, Items.ARROW) == 64, "and no arrows are taken")
             helper.assertTrue(containerCount(helper, leatherworker, Items.LEATHER_CHESTPLATE) == 0, "the leather came from the leatherworker")
+        }
+    }
+
+    /** Loose item entities of [item] inside the arena. */
+    private fun onGround(helper: GameTestHelper, item: Item): Int =
+        helper.level.getEntitiesOfClass(ItemEntity::class.java, AABB(abs(helper, BlockPos(-1, 0, -1))).expandTowards(20.0, 6.0, 12.0)) { it.item.`is`(item) }
+            .sumOf { it.item.count }
+
+    @GameTest(maxTicks = 100, padding = 32)
+    fun aGuardLootsTheFleshOfWhatItKills(helper: GameTestHelper) {
+        arena(helper, 0..10, 0..6)
+        // WIKI: Cleric — "MCA Guards: rotten flesh from looting kills". A zombie drops 0 to 2 flesh,
+        // so eight of them make a drop of none at all vanishingly unlikely.
+        val guard = mcaGuard(helper, BlockPos(2, 2, 3))
+        repeat(8) {
+            val zombie = helper.spawn(EntityTypes.ZOMBIE, BlockPos(4, 2, 3))
+            zombie.hurtServer(helper.level, helper.level.damageSources().mobAttack(guard), 1000f)
+        }
+        // Anyone else's kill drops as vanilla wrote it.
+        val other = helper.spawn(EntityTypes.ZOMBIE, BlockPos(8, 2, 3))
+        repeat(8) {
+            other.setHealth(other.maxHealth)
+            val zombie = helper.spawn(EntityTypes.ZOMBIE, BlockPos(8, 2, 5))
+            zombie.hurtServer(helper.level, helper.level.damageSources().mobAttack(other), 1000f)
+        }
+
+        helper.runAfterDelay(5) {
+            val carried = guard.inventory.countItem(Items.ROTTEN_FLESH)
+            helper.assertTrue(carried > 0, "the guard should carry the flesh of its kills")
+            helper.assertTrue(onGround(helper, Items.ROTTEN_FLESH) > 0, "while another mob's kills drop theirs on the ground")
+            val nearGuard = helper.level.getEntitiesOfClass(ItemEntity::class.java, AABB(abs(helper, BlockPos(4, 2, 3))).inflate(1.5)) { it.item.`is`(Items.ROTTEN_FLESH) }
+            helper.assertTrue(nearGuard.isEmpty(), "and none of the guard's kills leave flesh behind")
+            helper.succeed()
+        }
+    }
+
+    @GameTest(maxTicks = 1200, padding = 32)
+    fun aGuardBringsItsLootToTheCleric(helper: GameTestHelper) {
+        arena(helper, 0..14, 0..6)
+        // §16.1's delivery hook: the cleric's empty shelf orders flesh, and a guard carrying some walks
+        // it there through the same order view as every producer.
+        val stand = BlockPos(2, 2, 3)
+        station(helper, stand, Blocks.BREWING_STAND, VillagerProfession.CLERIC)
+        val guard = mcaGuard(helper, BlockPos(12, 2, 3), ItemStack(Items.ROTTEN_FLESH, 64))
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            val shelf = helper.level.getBlockEntity(abs(helper, stand.above())) as Container
+            val delivered = shelf.countItem(Items.ROTTEN_FLESH)
+            helper.assertTrue(delivered > 0, "the cleric's shelf should get the guard's flesh")
+            helper.assertTrue(guard.inventory.countItem(Items.ROTTEN_FLESH) == 64 - delivered, "out of the guard's inventory, exactly")
         }
     }
 }
