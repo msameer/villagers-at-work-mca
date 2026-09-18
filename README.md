@@ -17,7 +17,10 @@ MCA Reborn. When installed alongside both mods, it:
   separately, shows the core's error icon on MCA villagers too, and sets the limits. For voice and
   for the lines in your language, install the extension on the client as well.
 
-Handedness and children as errand-runners are still to come.
+- A working MCA villager holds its tool in its main hand, the left one if it is left-handed. This
+  needs the extension on the client.
+
+Children as errand-runners are still to come.
 
 ## Why a separate repository
 

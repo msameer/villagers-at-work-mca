@@ -65,6 +65,8 @@ if (vawCoreJar != null) {
             createSourceSet.set(true)
             modId.set("vaw-mca-test")
             enableGameTests.set(true)
+            // Client game tests open a real game window: on demand with `runClientGameTest`, never in `check`.
+            enableClientGameTests.set(true)
             // The user accepted the Minecraft EULA for game-test runs.
             eula.set(true)
         }
