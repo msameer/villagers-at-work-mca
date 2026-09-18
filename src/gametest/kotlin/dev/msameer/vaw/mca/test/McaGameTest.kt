@@ -421,6 +421,17 @@ class McaGameTest {
         helper.succeed()
     }
 
+    @GameTest
+    fun aTagIsNamedAsATagNotAsTheItemItsIconPictures(helper: GameTestHelper) {
+        // Any hoe will do, so the line asks for a hoe by the tag's own name, with the pictured item as
+        // the fallback for a client without the extension's names.
+        val line = McaSpeech.line(Blocked(BlockCause.MISSING_ITEM, Items.DIAMOND_HOE, Identifier.withDefaultNamespace("hoes")))
+        val named = line.siblings.last().contents as? net.minecraft.network.chat.contents.TranslatableContents
+        helper.assertTrue(named?.key == "tag.item.minecraft.hoes", "the tag's name should be asked for, got ${line.siblings}")
+        helper.assertTrue(named?.fallback == "Diamond Hoe", "with the pictured item as its fallback, got ${named?.fallback}")
+        helper.succeed()
+    }
+
     @GameTest(maxTicks = 800, padding = 48)
     fun theIconOptionShowsTheCoresIconOnMcaVillagers(helper: GameTestHelper) {
         // §2.2: MCA villagers speak instead of showing the icon, unless the extension's option asks for it.

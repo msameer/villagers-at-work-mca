@@ -76,8 +76,18 @@ object McaSpeech : SignalListener {
     fun line(blocked: Blocked): MutableComponent {
         val key = "vaw_mca.blocked.${blocked.cause.name.lowercase()}"
         val line = Component.translatableWithFallback(key, FALLBACK.getValue(blocked.cause))
-        blocked.item?.let { line.append(": ").append(ItemStack(it).hoverName) }
+        blocked.item?.let { line.append(": ").append(name(blocked, ItemStack(it).hoverName)) }
         return line
+    }
+
+    /**
+     * What is missing, by name. For "any item of a tag" that is the tag's own name, from the standard
+     * `tag.item.<namespace>.<path>` key, so a farmer asks for a hoe and not for the diamond hoe its icon
+     * happens to picture; a client without the name reads that item's name instead.
+     */
+    private fun name(blocked: Blocked, item: Component): Component {
+        val tag = blocked.tag ?: return item
+        return Component.translatableWithFallback("tag.item.${tag.namespace}.${tag.path.replace('/', '.')}", item.string)
     }
 
     /**

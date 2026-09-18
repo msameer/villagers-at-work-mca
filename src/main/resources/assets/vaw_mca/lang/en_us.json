@@ -12,5 +12,21 @@
   "vaw_mca.blocked.missing_item/2": "Could someone bring me this",
   "vaw_mca.blocked.missing_item/3": "I've nothing to work with",
   "vaw_mca.blocked.several_items/1": "I'm missing more than one thing I need to work.",
-  "vaw_mca.blocked.several_items/2": "My shelf is short of several things."
+  "vaw_mca.blocked.several_items/2": "My shelf is short of several things.",
+  "tag.item.vaw.farmer_tools": "a hoe or a knife",
+  "tag.item.vaw.butcher_tools": "an axe or a knife",
+  "tag.item.vaw.animal_feed": "animal feed",
+  "tag.item.vaw.fuel": "fuel",
+  "tag.item.vaw.smeltable_ore": "ore",
+  "tag.item.minecraft.hoes": "a hoe",
+  "tag.item.minecraft.planks": "planks",
+  "tag.item.minecraft.dyes": "dye",
+  "tag.item.minecraft.wooden_tool_materials": "planks",
+  "tag.item.minecraft.stone_tool_materials": "stone",
+  "tag.item.minecraft.copper_tool_materials": "copper",
+  "tag.item.minecraft.iron_tool_materials": "iron",
+  "tag.item.minecraft.gold_tool_materials": "gold",
+  "tag.item.minecraft.diamond_tool_materials": "diamonds",
+  "tag.item.c.tools.knife": "a knife",
+  "tag.item.farmersdelight.tools.knives": "a knife"
 }
