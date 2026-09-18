@@ -280,4 +280,37 @@ class McaGameTest {
             helper.assertTrue(guard.inventory.countItem(Items.ROTTEN_FLESH) == 64 - delivered, "out of the guard's inventory, exactly")
         }
     }
+
+    @GameTest(maxTicks = 3000, padding = 32)
+    fun aGuardTakesTheWeaponsmithsSwordAndExactlyOneReplacementIsMade(helper: GameTestHelper) {
+        arena(helper, 0..14, 0..6)
+        // The M6 exit, end to end with MCA: a guard missing its sword walks to the weaponsmith's
+        // armory and takes it, and the weaponsmith crafts exactly one replacement (§12.2). The maker
+        // never learns who took it; it sees one sword short and makes one.
+        val grindstone = BlockPos(2, 2, 3)
+        station(helper, grindstone, Blocks.GRINDSTONE, VillagerProfession.WEAPONSMITH, ItemStack(Items.IRON_INGOT, 8), ItemStack(Items.STICK, 8))
+        val armory = grindstone.north()
+        helper.setBlock(armory, Blocks.CHEST)
+        val weaponsmith = mcaWorker(helper, VillagerProfession.WEAPONSMITH, grindstone, BlockPos(3, 2, 3))
+        val guard = mcaGuard(helper, BlockPos(12, 2, 3))
+        helper.setTime(workTime)
+
+        fun swordInHand() = listOf(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND).any { guard.getItemBySlot(it).`is`(Items.IRON_SWORD) }
+        var restockedAt: Long? = null
+        helper.onEachTick {
+            if (restockedAt == null && swordInHand() && containerCount(helper, armory, Items.IRON_SWORD) == 1) restockedAt = helper.tick
+        }
+        helper.succeedWhen {
+            val since = restockedAt
+            helper.assertTrue(swordInHand(), "the guard should have taken the weaponsmith's sword" + worn(guard))
+            helper.assertTrue(since != null, "and the weaponsmith should have made a replacement at ${weaponsmith.blockPosition()}")
+            // Then a quarter of a day more: the armory holds one, and nothing more is made.
+            helper.assertTrue(helper.tick - since!! >= 600, "watching the refilled armory")
+            val swords = containerCount(helper, armory, Items.IRON_SWORD)
+            helper.assertTrue(swords == 1, "exactly one replacement, got $swords")
+            val shelf = helper.level.getBlockEntity(abs(helper, grindstone.above())) as Container
+            helper.assertTrue(shelf.countItem(Items.IRON_INGOT) == 4, "two swords' iron in all, got ${shelf.countItem(Items.IRON_INGOT)} left")
+            helper.assertTrue(guard.inventory.countItem(Items.IRON_SWORD) == 1, "and the guard carries just the one it took" + worn(guard))
+        }
+    }
 }

@@ -6,9 +6,14 @@ MCA Reborn. When installed alongside both mods, it:
 - lets MCA guards draw their gear from village armories instead of being equipped from nowhere, and
 - lets blocked villagers explain in words what they need.
 
-**Status:** early development. The extension registers itself as the guard provider, which switches
-on village armories, and gives MCA villagers their own reserve profile: they keep seed, not food.
-Guards drawing their gear from armories is in progress.
+**Status:** early development. The guard half works:
+
+- MCA no longer equips guards from nowhere. A guard wears only what it carries, and fetches what its
+  kit lacks from the armories of the village's armorer, weaponsmith, leatherworker and fletcher.
+- Guards loot the rotten flesh of their kills and bring it to a cleric that needs it.
+- MCA villagers keep seed but not food, since MCA breeding does not use it.
+
+Spoken diagnostics, handedness and children as errand-runners are still to come.
 
 ## Why a separate repository
 
