@@ -8,6 +8,9 @@
     "GuardKillMixin",
     "GuardLootDropMixin"
   ],
+  "client": [
+    "client.VillagerMessageMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   },

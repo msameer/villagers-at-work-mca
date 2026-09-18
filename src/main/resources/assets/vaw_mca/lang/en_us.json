@@ -1,0 +1,16 @@
+{
+  "vaw_mca.blocked.shelf/1": "I can't tell which shelf is mine.",
+  "vaw_mca.blocked.shelf/2": "Which of these shelves is mine?",
+  "vaw_mca.blocked.armor_stand/1": "I can't tell which armor stand is mine.",
+  "vaw_mca.blocked.armory/1": "I've nowhere to keep what I make. I need a chest.",
+  "vaw_mca.blocked.armory/2": "Where am I supposed to put all this? A chest, please.",
+  "vaw_mca.blocked.water/1": "There's no water here to fish in.",
+  "vaw_mca.blocked.water/2": "I can't fish without water.",
+  "vaw_mca.blocked.storage_full/1": "The chest is full.",
+  "vaw_mca.blocked.storage_full/2": "There's no room left in storage.",
+  "vaw_mca.blocked.missing_item/1": "I can't work without this",
+  "vaw_mca.blocked.missing_item/2": "Could someone bring me this",
+  "vaw_mca.blocked.missing_item/3": "I've nothing to work with",
+  "vaw_mca.blocked.several_items/1": "I'm missing more than one thing I need to work.",
+  "vaw_mca.blocked.several_items/2": "My shelf is short of several things."
+}

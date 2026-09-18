@@ -19,7 +19,10 @@ import dev.msameer.vaw.api.GuardProvider
 import dev.msameer.vaw.api.ReserveProvider
 import dev.msameer.vaw.api.VawApi
 import net.conczin.mca.entity.VillagerEntityMCA
+import net.conczin.mca.registry.EntitiesMCA
 import net.fabricmc.api.ModInitializer
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents
+import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.tags.ItemTags
 import net.minecraft.world.entity.npc.villager.Villager
 import net.minecraft.world.item.ItemStack
@@ -37,6 +40,12 @@ object VawMca : ModInitializer {
         override val id: String = "mca"
     }
 
+    /** Has the core draw its error icon on MCA villagers too (§2.2). */
+    fun showErrorIcons() {
+        VawApi.showErrorIconsFor(EntitiesMCA.MALE_VILLAGER)
+        VawApi.showErrorIconsFor(EntitiesMCA.FEMALE_VILLAGER)
+    }
+
     /**
      * §16.1: MCA villagers breed by MCA's own rules, not by sharing food, so they keep no food back.
      * Seed is still kept, as a vanilla villager keeps it. Vanilla villagers get the core's default.
@@ -47,8 +56,14 @@ object VawMca : ModInitializer {
     }
 
     override fun onInitialize() {
+        McaConfig.load(FabricLoader.getInstance().configDir)
+        McaSpeech.reset()
         VawApi.registerGuardProvider(McaGuards)
         VawApi.registerReserveProvider(McaReserve)
+        VawApi.registerSignalListener(McaSpeech)
+        // §2.2: MCA villagers speak instead of showing the icon, unless the player asks for both.
+        if (McaConfig.showErrorIcon) showErrorIcons()
+        ServerEntityEvents.ENTITY_UNLOAD.register { entity, _ -> if (entity is Villager) McaSpeech.forget(entity) }
         LOGGER.info("Villagers at Work MCA extension loaded; guard provider '{}' registered", McaGuards.id)
     }
 }

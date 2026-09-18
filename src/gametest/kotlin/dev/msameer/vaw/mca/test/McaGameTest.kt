@@ -15,6 +15,11 @@
  */
 package dev.msameer.vaw.mca.test
 
+import dev.msameer.vaw.mca.McaSpeech
+import dev.msameer.vaw.mca.SpeechGovernor
+import dev.msameer.vaw.mca.VawMca
+import dev.msameer.vaw.api.BlockCause
+import dev.msameer.vaw.api.Blocked
 import net.conczin.mca.entity.VillagerEntityMCA
 import net.conczin.mca.entity.ai.MemoryModuleTypeMCA
 import net.conczin.mca.registry.EntitiesMCA
@@ -311,6 +316,124 @@ class McaGameTest {
             val shelf = helper.level.getBlockEntity(abs(helper, grindstone.above())) as Container
             helper.assertTrue(shelf.countItem(Items.IRON_INGOT) == 4, "two swords' iron in all, got ${shelf.countItem(Items.IRON_INGOT)} left")
             helper.assertTrue(guard.inventory.countItem(Items.IRON_SWORD) == 1, "and the guard carries just the one it took" + worn(guard))
+        }
+    }
+
+    /** Every line said, by speaker, recorded instead of sent (§8.3). */
+    private object Said {
+        val lines = java.util.concurrent.ConcurrentHashMap<java.util.UUID, MutableList<String>>()
+
+        fun record() {
+            McaSpeech.deliver = { villager, _, line ->
+                val key = (line.contents as? net.minecraft.network.chat.contents.TranslatableContents)?.key ?: line.string
+                lines.getOrPut(villager.uuid) { java.util.Collections.synchronizedList(ArrayList()) }.add(key)
+            }
+        }
+
+        fun by(villagers: List<VillagerEntityMCA>): List<String> = villagers.flatMap { lines[it.uuid].orEmpty().toList() }
+    }
+
+    /** A player standing at [at], to hear what is said; removed when the test ends. */
+    // Vanilla marks it deprecated as a test-only helper, which is exactly how it is used here.
+    @Suppress("DEPRECATION")
+    private fun listener(helper: GameTestHelper, at: BlockPos): net.minecraft.server.level.ServerPlayer {
+        val player = helper.makeMockServerPlayerInLevel()
+        val pos = abs(helper, at)
+        player.snapTo(pos.x + 0.5, pos.y.toDouble(), pos.z + 0.5, 0f, 0f)
+        return player
+    }
+
+    private fun leave(helper: GameTestHelper, player: net.minecraft.server.level.ServerPlayer) =
+        helper.level.server.playerList.remove(player)
+
+    @GameTest(maxTicks = 1600, padding = 48)
+    fun aVillageOfBlockedVillagersSpeaksOncePerCause(helper: GameTestHelper) {
+        Said.record()
+        arena(helper, 0..20, 0..8)
+        // The M8 exit (§8.3): three farmers missing a hoe and two librarians missing several things, for
+        // a working day's stretch. Every scan finds them blocked, and yet the village says one line per
+        // cause: the core reports changes only, and the extension says a cause once among neighbours.
+        val farmers = (0 until 3).map { i ->
+            val composter = BlockPos(2 + i * 4, 2, 2)
+            station(helper, composter, Blocks.COMPOSTER, VillagerProfession.FARMER)
+            mcaWorker(helper, VillagerProfession.FARMER, composter, composter.south())
+        }
+        val librarians = (0 until 2).map { i ->
+            val lectern = BlockPos(2 + i * 4, 2, 6)
+            station(helper, lectern, Blocks.LECTERN, VillagerProfession.LIBRARIAN)
+            mcaWorker(helper, VillagerProfession.LIBRARIAN, lectern, lectern.north())
+        }
+        val player = listener(helper, BlockPos(8, 2, 4))
+        helper.setTime(workTime)
+
+        helper.runAfterDelay(1200) {
+            leave(helper, player)
+            val said = Said.by(farmers + librarians)
+            helper.assertTrue(said.sorted() == listOf("vaw_mca.blocked.missing_item", "vaw_mca.blocked.several_items"),
+                "one line per cause, got $said")
+            helper.succeed()
+        }
+    }
+
+    @GameTest(maxTicks = 800, padding = 48)
+    fun aBlockedVillagerWithNobodyNearSaysNothing(helper: GameTestHelper) {
+        Said.record()
+        arena(helper, 0..8, 0..6)
+        // §8.3: speech is proximity-gated and never server-wide.
+        val composter = BlockPos(4, 2, 3)
+        station(helper, composter, Blocks.COMPOSTER, VillagerProfession.FARMER)
+        val farmer = mcaWorker(helper, VillagerProfession.FARMER, composter, composter.south())
+        helper.setTime(workTime)
+
+        helper.runAfterDelay(600) {
+            helper.assertTrue(Said.by(listOf(farmer)).isEmpty(), "nobody near, so nothing is said, got ${Said.by(listOf(farmer))}")
+            helper.succeed()
+        }
+    }
+
+    @GameTest
+    fun theSpeechLimitsHold(helper: GameTestHelper) {
+        // §8.3's measures on top of the core's change-only reports.
+        val governor = SpeechGovernor(cooldownTicks = 6000, cap = 2, windowTicks = 1200, range = 64.0)
+        val a = java.util.UUID.randomUUID()
+        val b = java.util.UUID.randomUUID()
+        val c = java.util.UUID.randomUUID()
+        val d = java.util.UUID.randomUUID()
+        helper.assertTrue(governor.allow(a, "tool", 0.0, 64.0, 0.0, 0), "the first line is said")
+        helper.assertTrue(!governor.allow(a, "water", 0.0, 64.0, 0.0, 100), "one villager keeps quiet through its cooldown")
+        helper.assertTrue(!governor.allow(b, "tool", 10.0, 64.0, 0.0, 100), "a cause already said nearby is not said again")
+        helper.assertTrue(governor.allow(b, "tool", 500.0, 64.0, 0.0, 100), "but is, far enough away")
+        helper.assertTrue(governor.allow(c, "water", 5.0, 64.0, 0.0, 200), "another cause is said")
+        helper.assertTrue(!governor.allow(d, "storage", 5.0, 64.0, 5.0, 300), "until the village cap is reached")
+        helper.assertTrue(governor.allow(d, "storage", 5.0, 64.0, 5.0, 1300), "and again once the window has passed")
+        helper.assertTrue(governor.allow(a, "water2", 0.0, 64.0, 0.0, 6100), "and a villager speaks again after its cooldown")
+        helper.succeed()
+    }
+
+    @GameTest
+    fun aLineIsMcasOwnKindAndNamesTheItem(helper: GameTestHelper) {
+        // §8.3: a key MCA resolves on the client, with an English fallback; the item follows as text.
+        val line = McaSpeech.line(Blocked(BlockCause.MISSING_ITEM, Items.IRON_HOE))
+        val contents = line.contents as? net.minecraft.network.chat.contents.TranslatableContents
+        helper.assertTrue(contents?.key == "vaw_mca.blocked.missing_item", "the line is a translation key, got ${line.contents}")
+        helper.assertTrue(contents?.fallback != null, "with an English fallback")
+        helper.assertTrue(line.string.endsWith(": Iron Hoe"), "naming the item, got '${line.string}'")
+        helper.succeed()
+    }
+
+    @GameTest(maxTicks = 800, padding = 48)
+    fun theIconOptionShowsTheCoresIconOnMcaVillagers(helper: GameTestHelper) {
+        // §2.2: MCA villagers speak instead of showing the icon, unless the extension's option asks for it.
+        VawMca.showErrorIcons()
+        arena(helper, 0..8, 0..6)
+        val composter = BlockPos(4, 2, 3)
+        station(helper, composter, Blocks.COMPOSTER, VillagerProfession.FARMER)
+        val farmer = mcaWorker(helper, VillagerProfession.FARMER, composter, composter.south())
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            val icon = farmer.passengers.firstOrNull { "vaw_error_icon" in it.entityTags() }
+            helper.assertTrue(icon != null, "the blocked MCA farmer should show the core's icon")
         }
     }
 }

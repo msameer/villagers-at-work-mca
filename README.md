@@ -12,8 +12,12 @@ MCA Reborn. When installed alongside both mods, it:
   kit lacks from the armories of the village's armorer, weaponsmith, leatherworker and fletcher.
 - Guards loot the rotten flesh of their kills and bring it to a cleric that needs it.
 - MCA villagers keep seed but not food, since MCA breeding does not use it.
+- A blocked MCA villager says why, in chat and in MCA's own voice, once per cause among its
+  neighbours and only to players nearby. `villagers-at-work-mca.json` turns chat and voice on or off
+  separately, shows the core's error icon on MCA villagers too, and sets the limits. For voice and
+  for the lines in your language, install the extension on the client as well.
 
-Spoken diagnostics, handedness and children as errand-runners are still to come.
+Handedness and children as errand-runners are still to come.
 
 ## Why a separate repository
 
