@@ -9,7 +9,8 @@
       "dev.msameer.vaw.mca.test.McaGameTest"
     ],
     "fabric-client-gametest": [
-      "dev.msameer.vaw.mca.test.McaHandsClientGameTest"
+      "dev.msameer.vaw.mca.test.McaHandsClientGameTest",
+      "dev.msameer.vaw.mca.test.McaIconClientGameTest"
     ]
   }
 }
