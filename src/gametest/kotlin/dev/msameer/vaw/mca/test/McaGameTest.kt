@@ -16,15 +16,19 @@
 package dev.msameer.vaw.mca.test
 
 import net.conczin.mca.entity.VillagerEntityMCA
+import net.conczin.mca.entity.ai.MemoryModuleTypeMCA
 import net.conczin.mca.registry.EntitiesMCA
 import net.fabricmc.fabric.api.gametest.v1.GameTest
 import net.minecraft.core.BlockPos
 import net.minecraft.core.GlobalPos
 import net.minecraft.core.SectionPos
 import net.minecraft.core.registries.BuiltInRegistries
+import net.minecraft.core.registries.Registries
 import net.minecraft.gametest.framework.GameTestHelper
+import net.minecraft.resources.Identifier
 import net.minecraft.resources.ResourceKey
 import net.minecraft.world.Container
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.ai.memory.MemoryModuleType
 import net.minecraft.world.entity.npc.villager.VillagerProfession
 import net.minecraft.world.item.Item
@@ -81,6 +85,19 @@ class McaGameTest {
         return villager
     }
 
+    /** An MCA swordsman guard carrying [carried]. Guards have no job site; MCA gives them a patrol. */
+    private fun mcaGuard(helper: GameTestHelper, at: BlockPos, vararg carried: ItemStack): VillagerEntityMCA {
+        val villager = helper.spawn(EntitiesMCA.MALE_VILLAGER, at.x, at.y, at.z)
+        val guard = ResourceKey.create(Registries.VILLAGER_PROFESSION, Identifier.fromNamespaceAndPath("mca", "guard"))
+        villager.setVillagerData(villager.villagerData.withProfession(helper.level.registryAccess(), guard))
+        villager.refreshBrain(helper.level)
+        for ((slot, stack) in carried.withIndex()) villager.inventory.setItem(slot, stack)
+        return villager
+    }
+
+    private fun worn(villager: VillagerEntityMCA): String =
+        " [worn=${EquipmentSlot.entries.associateWith { villager.getItemBySlot(it) }.filterValues { !it.isEmpty }.mapValues { BuiltInRegistries.ITEM.getKey(it.value.item) }}]"
+
     private fun containerCount(helper: GameTestHelper, pos: BlockPos, item: Item): Int =
         (helper.level.getBlockEntity(abs(helper, pos)) as Container).countItem(item)
 
@@ -122,6 +139,36 @@ class McaGameTest {
             helper.assertTrue(containerCount(helper, chest, Items.BREAD) > 0, "the MCA villager's bread should reach storage")
             helper.assertTrue(containerCount(helper, chest, Items.WHEAT_SEEDS) == 0, "and its seed must stay")
             helper.assertTrue(inventory.countItem(Items.WHEAT_SEEDS) == 64, "in its inventory")
+        }
+    }
+
+    @GameTest(maxTicks = 600, padding = 32)
+    fun aGuardWearsOnlyWhatItCarries(helper: GameTestHelper) {
+        arena(helper, 0..10, 0..6)
+        // §12.2: the extension stops MCA equipping guards from nowhere. MCA's level-0 swordsman kit
+        // is an iron sword, an iron chestplate, leather leggings and leather boots, and MCA creates
+        // whatever the guard does not carry. Now a guard wears only stacks from its own inventory.
+        val bare = mcaGuard(helper, BlockPos(2, 2, 3))
+        val sword = ItemStack(Items.IRON_SWORD)
+        val chestplate = ItemStack(Items.IRON_CHESTPLATE)
+        val boots = ItemStack(Items.LEATHER_BOOTS)
+        val kitted = mcaGuard(helper, BlockPos(8, 2, 3), sword, chestplate, boots)
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            // The kitted guard proves MCA's equipping ran, on duty: it wears what it carries, and the
+            // very stacks it carries, not copies.
+            val hands = listOf(kitted.getItemBySlot(EquipmentSlot.MAINHAND), kitted.getItemBySlot(EquipmentSlot.OFFHAND))
+            helper.assertTrue(hands.any { it === sword }, "the guard should hold its own sword" + worn(kitted))
+            helper.assertTrue(kitted.getItemBySlot(EquipmentSlot.CHEST) === chestplate, "and wear its own chestplate" + worn(kitted))
+            helper.assertTrue(kitted.getItemBySlot(EquipmentSlot.FEET) === boots, "and its own boots" + worn(kitted))
+            helper.assertTrue(kitted.getItemBySlot(EquipmentSlot.LEGS).isEmpty, "but no leggings it does not carry" + worn(kitted))
+            helper.assertTrue(kitted.inventory.countItem(Items.IRON_SWORD) == 1, "and nothing added to its inventory" + worn(kitted))
+            // The bare guard was equipped too, and wears nothing at all.
+            helper.assertTrue(bare.brain.getMemoryInternal(MemoryModuleTypeMCA.WEARS_ARMOR)?.isPresent == true, "MCA should have equipped the bare guard")
+            for (slot in EquipmentSlot.entries) {
+                helper.assertTrue(bare.getItemBySlot(slot).isEmpty, "a guard carrying nothing must wear nothing, but has $slot" + worn(bare))
+            }
         }
     }
 }
