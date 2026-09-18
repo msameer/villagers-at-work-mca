@@ -20,7 +20,8 @@ MCA Reborn. When installed alongside both mods, it:
 - A working MCA villager holds its tool in its main hand, the left one if it is left-handed. This
   needs the extension on the client.
 
-Children as errand-runners are still to come.
+- MCA children run the Villagers at Work core's errands like vanilla children: at most two a day,
+  in working hours, carrying a station's output to a shelf that ordered it or to storage.
 
 ## Why a separate repository
 

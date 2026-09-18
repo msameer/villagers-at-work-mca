@@ -436,4 +436,26 @@ class McaGameTest {
             helper.assertTrue(icon != null, "the blocked MCA farmer should show the core's icon")
         }
     }
+
+    @GameTest(maxTicks = 2400, padding = 32)
+    fun anMcaChildRunsAnErrandToo(helper: GameTestHelper) {
+        arena(helper, 0..12, 0..6)
+        // §16.1: children's errands are the core's, for vanilla and MCA children alike. An MCA child
+        // takes what a station left in its buffer chest to village storage.
+        val table = BlockPos(2, 2, 3)
+        station(helper, table, Blocks.CARTOGRAPHY_TABLE, VillagerProfession.CARTOGRAPHER)
+        val buffer = table.south()
+        helper.setBlock(buffer, Blocks.CHEST)
+        (helper.level.getBlockEntity(abs(helper, buffer)) as Container).setItem(0, ItemStack(Items.PAPER, 5))
+        val storage = BlockPos(10, 2, 3)
+        helper.setBlock(storage, BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace("copper_chest")))
+        val child = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, BlockPos(6, 2, 3))
+        child.age = -24000 * 4
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            helper.assertTrue(child.isBaby, "the MCA villager should be a child")
+            helper.assertTrue(containerCount(helper, storage, Items.PAPER) == 5, "the MCA child should take the paper to storage")
+        }
+    }
 }
