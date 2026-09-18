@@ -1,0 +1,4 @@
+{
+  "guard_type": "mca:archer",
+  "suppliers": ["minecraft:leatherworker", "minecraft:fletcher"]
+}

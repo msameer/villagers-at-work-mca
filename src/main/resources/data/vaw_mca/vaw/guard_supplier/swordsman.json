@@ -1,0 +1,4 @@
+{
+  "guard_type": "mca:guard",
+  "suppliers": ["minecraft:armorer", "minecraft:weaponsmith"]
+}

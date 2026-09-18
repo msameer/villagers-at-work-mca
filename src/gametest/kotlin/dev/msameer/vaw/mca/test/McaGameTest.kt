@@ -85,10 +85,10 @@ class McaGameTest {
         return villager
     }
 
-    /** An MCA swordsman guard carrying [carried]. Guards have no job site; MCA gives them a patrol. */
-    private fun mcaGuard(helper: GameTestHelper, at: BlockPos, vararg carried: ItemStack): VillagerEntityMCA {
+    /** An MCA guard carrying [carried]: a swordsman, or an archer. Guards have no job site; MCA gives them a patrol. */
+    private fun mcaGuard(helper: GameTestHelper, at: BlockPos, vararg carried: ItemStack, type: String = "guard"): VillagerEntityMCA {
         val villager = helper.spawn(EntitiesMCA.MALE_VILLAGER, at.x, at.y, at.z)
-        val guard = ResourceKey.create(Registries.VILLAGER_PROFESSION, Identifier.fromNamespaceAndPath("mca", "guard"))
+        val guard = ResourceKey.create(Registries.VILLAGER_PROFESSION, Identifier.fromNamespaceAndPath("mca", type))
         villager.setVillagerData(villager.villagerData.withProfession(helper.level.registryAccess(), guard))
         villager.refreshBrain(helper.level)
         for ((slot, stack) in carried.withIndex()) villager.inventory.setItem(slot, stack)
@@ -169,6 +169,61 @@ class McaGameTest {
             for (slot in EquipmentSlot.entries) {
                 helper.assertTrue(bare.getItemBySlot(slot).isEmpty, "a guard carrying nothing must wear nothing, but has $slot" + worn(bare))
             }
+        }
+    }
+
+    /** A maker's station with an armory chest north of it, stocked with [stock]. No maker is needed to read it. */
+    private fun armory(helper: GameTestHelper, station: BlockPos, workstation: Block, profession: ResourceKey<VillagerProfession>, vararg stock: ItemStack): BlockPos {
+        station(helper, station, workstation, profession)
+        val chest = station.north()
+        helper.setBlock(chest, Blocks.CHEST)
+        val container = helper.level.getBlockEntity(abs(helper, chest)) as Container
+        for ((slot, stack) in stock.withIndex()) container.setItem(slot, stack)
+        return chest
+    }
+
+    @GameTest(maxTicks = 1800, padding = 32)
+    fun aSwordsmanFetchesItsKitFromItsSuppliersArmories(helper: GameTestHelper) {
+        arena(helper, 0..16, 0..8)
+        // §12.2: a swordsman missing its kit walks to the armories of its suppliers — the weaponsmith
+        // and the armorer — and takes what it lacks. The leatherworker supplies archers, so its boots
+        // stay put although the swordsman's kit has a boots slot.
+        val weaponsmith = armory(helper, BlockPos(2, 2, 2), Blocks.GRINDSTONE, VillagerProfession.WEAPONSMITH, ItemStack(Items.IRON_SWORD))
+        val armorer = armory(helper, BlockPos(8, 2, 2), Blocks.BLAST_FURNACE, VillagerProfession.ARMORER, ItemStack(Items.IRON_CHESTPLATE))
+        val leatherworker = armory(helper, BlockPos(14, 2, 2), Blocks.CAULDRON, VillagerProfession.LEATHERWORKER, ItemStack(Items.LEATHER_BOOTS))
+        val guard = mcaGuard(helper, BlockPos(8, 2, 6))
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            val hands = listOf(guard.getItemBySlot(EquipmentSlot.MAINHAND), guard.getItemBySlot(EquipmentSlot.OFFHAND))
+            helper.assertTrue(hands.any { it.`is`(Items.IRON_SWORD) }, "the swordsman should hold the weaponsmith's sword" + worn(guard))
+            helper.assertTrue(guard.getItemBySlot(EquipmentSlot.CHEST).`is`(Items.IRON_CHESTPLATE), "and wear the armorer's chestplate" + worn(guard))
+            helper.assertTrue(containerCount(helper, weaponsmith, Items.IRON_SWORD) == 0, "taken from the weaponsmith's armory")
+            helper.assertTrue(containerCount(helper, armorer, Items.IRON_CHESTPLATE) == 0, "and the armorer's")
+            helper.assertTrue(containerCount(helper, leatherworker, Items.LEATHER_BOOTS) == 1, "but never from an archer's supplier" + worn(guard))
+            helper.assertTrue(guard.getItemBySlot(EquipmentSlot.FEET).isEmpty, "so it has no boots" + worn(guard))
+        }
+    }
+
+    @GameTest(maxTicks = 1800, padding = 32)
+    fun anArcherFetchesItsBowAndLeatherAndNoIron(helper: GameTestHelper) {
+        arena(helper, 0..16, 0..8)
+        // The other half of the supplier map: an archer draws from the fletcher and the leatherworker,
+        // and the armorer's iron is for swordsmen. MCA's level-0 archer kit is a bow and a chestplate.
+        val fletcher = armory(helper, BlockPos(2, 2, 2), Blocks.FLETCHING_TABLE, VillagerProfession.FLETCHER, ItemStack(Items.BOW), ItemStack(Items.ARROW, 64))
+        val leatherworker = armory(helper, BlockPos(8, 2, 2), Blocks.CAULDRON, VillagerProfession.LEATHERWORKER, ItemStack(Items.LEATHER_CHESTPLATE))
+        val armorer = armory(helper, BlockPos(14, 2, 2), Blocks.BLAST_FURNACE, VillagerProfession.ARMORER, ItemStack(Items.IRON_CHESTPLATE))
+        val archer = mcaGuard(helper, BlockPos(14, 2, 6), type = "archer")
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            val hands = listOf(archer.getItemBySlot(EquipmentSlot.MAINHAND), archer.getItemBySlot(EquipmentSlot.OFFHAND))
+            helper.assertTrue(hands.any { it.`is`(Items.BOW) }, "the archer should hold the fletcher's bow" + worn(archer))
+            helper.assertTrue(archer.getItemBySlot(EquipmentSlot.CHEST).`is`(Items.LEATHER_CHESTPLATE), "and wear leather, though iron is nearer" + worn(archer))
+            helper.assertTrue(containerCount(helper, armorer, Items.IRON_CHESTPLATE) == 1, "the armorer's iron is not for archers")
+            // MCA archers never use arrows up (§19), so the fletcher's stack is not theirs to take.
+            helper.assertTrue(containerCount(helper, fletcher, Items.ARROW) == 64, "and no arrows are taken")
+            helper.assertTrue(containerCount(helper, leatherworker, Items.LEATHER_CHESTPLATE) == 0, "the leather came from the leatherworker")
         }
     }
 }

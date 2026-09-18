@@ -3,7 +3,8 @@
   "package": "dev.msameer.vaw.mca.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "EquipmentTaskMixin"
+    "EquipmentTaskMixin",
+    "GuardBrainMixin"
   ],
   "injectors": {
     "defaultRequire": 1

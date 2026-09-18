@@ -16,12 +16,8 @@
 package dev.msameer.vaw.mca
 
 import net.conczin.mca.entity.VillagerEntityMCA
-import net.conczin.mca.util.InventoryUtils
-import net.minecraft.core.component.DataComponents
 import net.minecraft.world.entity.EquipmentSlot
-import net.minecraft.world.entity.ai.attributes.Attributes
 import net.minecraft.world.item.ItemStack
-import net.minecraft.world.item.ProjectileWeaponItem
 
 /**
  * Stops MCA equipping guards from nowhere (Technical Reference §12.2). **MCA still decides what a
@@ -54,18 +50,6 @@ object GuardEquipment {
     }
 
     /** The inventory's stacks that could fill [slot] in place of [worn], best first, as MCA itself ranks them. */
-    private fun sameKind(carried: List<ItemStack>, worn: ItemStack, slot: EquipmentSlot): List<ItemStack> {
-        val fits: (ItemStack) -> Boolean = when {
-            slot.type == EquipmentSlot.Type.HUMANOID_ARMOR -> { it -> it.get(DataComponents.EQUIPPABLE)?.slot() == slot }
-            worn.item is ProjectileWeaponItem -> { it -> it.item is ProjectileWeaponItem }
-            InventoryUtils.isWeapon(worn) -> InventoryUtils::isWeapon
-            worn.has(DataComponents.BLOCKS_ATTACKS) -> { it -> it.has(DataComponents.BLOCKS_ATTACKS) }
-            else -> { it -> it.`is`(worn.item) }
-        }
-        val armour = { stack: ItemStack ->
-            stack.get(DataComponents.ATTRIBUTE_MODIFIERS)?.compute(Attributes.ARMOR, 0.0, slot) ?: 0.0
-        }
-        val rank: (ItemStack) -> Double = if (slot.type == EquipmentSlot.Type.HUMANOID_ARMOR) armour else { it -> it.maxDamage.toDouble() }
-        return carried.filter { !it.isEmpty && fits(it) }.sortedByDescending(rank)
-    }
+    private fun sameKind(carried: List<ItemStack>, worn: ItemStack, slot: EquipmentSlot): List<ItemStack> =
+        carried.filter { !it.isEmpty && GuardKit.fits(worn.item, slot)(it) }.sortedByDescending(GuardKit.rank(slot))
 }
