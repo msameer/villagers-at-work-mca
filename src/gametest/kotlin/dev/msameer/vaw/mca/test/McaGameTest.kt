@@ -37,6 +37,7 @@ import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.phys.AABB
+import java.util.Optional
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.player.Player
 import java.util.concurrent.locks.LockSupport
@@ -480,24 +481,54 @@ class McaGameTest {
     }
 
     @GameTest(maxTicks = 2400, padding = 32)
-    fun anMcaChildRunsAnErrandToo(helper: GameTestHelper) {
-        arena(helper, 0..12, 0..6)
-        // §16.1: children's errands are the core's, for vanilla and MCA children alike. An MCA child
-        // takes what a station left in its buffer chest to village storage.
+    fun anMcaChildRunsErrandsOnlyForItsParents(helper: GameTestHelper) {
+        arena(helper, 0..14, 0..6)
+        // §16.1 and WIKI: MCA Reborn — children's errands are the core's, for vanilla and MCA children
+        // alike, but an MCA child runs them only for its parents, whom MCA's family tree remembers. It
+        // takes its father's paper to storage and leaves a stranger's buffer alone, though it is nearer.
         val table = BlockPos(2, 2, 3)
         station(helper, table, Blocks.CARTOGRAPHY_TABLE, VillagerProfession.CARTOGRAPHER)
         val buffer = table.south()
         helper.setBlock(buffer, Blocks.CHEST)
         (helper.level.getBlockEntity(abs(helper, buffer)) as Container).setItem(0, ItemStack(Items.PAPER, 5))
+        val strangers = BlockPos(10, 2, 3)
+        station(helper, strangers, Blocks.CARTOGRAPHY_TABLE, VillagerProfession.CARTOGRAPHER)
+        helper.setBlock(strangers.south(), Blocks.CHEST)
+        (helper.level.getBlockEntity(abs(helper, strangers.south())) as Container).setItem(0, ItemStack(Items.MAP, 3))
+        val storage = BlockPos(13, 2, 5)
+        helper.setBlock(storage, BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace("copper_chest")))
+        val father = mcaWorker(helper, VillagerProfession.CARTOGRAPHER, table, BlockPos(2, 2, 5))
+        val child = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, BlockPos(9, 2, 5))
+        child.age = -24000 * 4
+        child.relationships.familyEntry.replaceParents(father.relationships.familyEntry, Optional.empty())
+        helper.setTime(workTime)
+
+        helper.succeedWhen {
+            helper.assertTrue(child.isBaby, "the MCA villager should be a child")
+            helper.assertTrue(containerCount(helper, storage, Items.PAPER) == 5, "the MCA child should take its father's paper to storage")
+            helper.assertTrue(containerCount(helper, strangers.south(), Items.MAP) == 3, "and leave the stranger's maps")
+        }
+    }
+
+    @GameTest(maxTicks = 1800, padding = 32)
+    fun anMcaOrphanRunsNoErrands(helper: GameTestHelper) {
+        arena(helper, 0..12, 0..6)
+        // With no parents in MCA's family tree, an MCA child has nobody to run errands for.
+        val table = BlockPos(2, 2, 3)
+        station(helper, table, Blocks.CARTOGRAPHY_TABLE, VillagerProfession.CARTOGRAPHER)
+        helper.setBlock(table.south(), Blocks.CHEST)
+        (helper.level.getBlockEntity(abs(helper, table.south())) as Container).setItem(0, ItemStack(Items.PAPER, 5))
         val storage = BlockPos(10, 2, 3)
         helper.setBlock(storage, BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace("copper_chest")))
         val child = helper.spawn(EntitiesMCA.FEMALE_VILLAGER, BlockPos(6, 2, 3))
         child.age = -24000 * 4
         helper.setTime(workTime)
 
-        helper.succeedWhen {
-            helper.assertTrue(child.isBaby, "the MCA villager should be a child")
-            helper.assertTrue(containerCount(helper, storage, Items.PAPER) == 5, "the MCA child should take the paper to storage")
+        // Its first look falls within the first minute, and it would have fetched the paper well within
+        // the next twenty seconds.
+        helper.runAfterDelay(1600) {
+            helper.assertTrue(containerCount(helper, table.south(), Items.PAPER) == 5, "the orphan should leave the paper where it is")
+            helper.succeed()
         }
     }
 }

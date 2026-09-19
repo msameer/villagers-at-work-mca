@@ -61,6 +61,7 @@ object VawMca : ModInitializer {
         VawApi.registerGuardProvider(McaGuards)
         VawApi.registerReserveProvider(McaReserve)
         VawApi.registerSignalListener(McaSpeech)
+        VawApi.registerFamilyProvider(McaFamily)
         // §2.2: MCA villagers speak instead of showing the icon, unless the player asks for both.
         if (McaConfig.showErrorIcon) showErrorIcons()
         ServerEntityEvents.ENTITY_UNLOAD.register { entity, _ -> if (entity is Villager) McaSpeech.forget(entity) }
