@@ -37,6 +37,9 @@ import net.minecraft.world.entity.EntityTypes
 import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.item.ItemEntity
 import net.minecraft.world.phys.AABB
+import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.player.Player
+import java.util.concurrent.locks.LockSupport
 import net.minecraft.world.entity.ai.memory.MemoryModuleType
 import net.minecraft.world.entity.npc.villager.VillagerProfession
 import net.minecraft.world.item.Item
@@ -53,17 +56,45 @@ import net.minecraft.world.level.block.Blocks
 class McaGameTest {
     private val workTime = 3000L
 
+    private companion object {
+        /** How long an arena waits for its chunks before the test fails, and how often it looks. */
+        const val CHUNK_WAIT_NANOS = 60_000_000_000L
+        const val CHUNK_POLL_NANOS = 1_000_000L
+    }
+
     private fun abs(helper: GameTestHelper, pos: BlockPos): BlockPos = helper.absolutePos(pos)
 
-    /** A stone floor walled two blocks high, with its chunks kept ticking. */
+    /**
+     * A stone floor walled two blocks high, with its chunks kept ticking.
+     *
+     * Vanilla waits for the chunks under a test's structure before it starts the test, but that
+     * structure is Fabric's empty 8×8 one and an arena reaches well past it. Forcing a chunk only
+     * queues its load, and test ticks run flat out, so on a busy machine a villager could be spawned
+     * into a chunk that was not ticking yet, or into one the last batch had just let go of and that
+     * was about to be saved and unloaded from under the test. Either way it stood frozen for the
+     * whole test. So this runs the chunk work itself until every chunk ticks entities.
+     */
     private fun arena(helper: GameTestHelper, xs: IntRange, zs: IntRange) {
+        val level = helper.level
         val from = abs(helper, BlockPos(xs.first - 1, 2, zs.first - 1))
         val to = abs(helper, BlockPos(xs.last + 1, 2, zs.last + 1))
+        val corners = ArrayList<BlockPos>()
         for (cx in SectionPos.blockToSectionCoord(minOf(from.x, to.x))..SectionPos.blockToSectionCoord(maxOf(from.x, to.x))) {
             for (cz in SectionPos.blockToSectionCoord(minOf(from.z, to.z))..SectionPos.blockToSectionCoord(maxOf(from.z, to.z))) {
-                helper.level.setChunkForced(cx, cz, true)
+                level.setChunkForced(cx, cz, true)
+                corners += BlockPos(SectionPos.sectionToBlockCoord(cx), from.y, SectionPos.sectionToBlockCoord(cz))
             }
         }
+        val deadline = System.nanoTime() + CHUNK_WAIT_NANOS
+        while (!corners.all(level::isPositionEntityTicking)) {
+            if (level.chunkSource.pollTask()) continue
+            helper.assertTrue(System.nanoTime() < deadline, "the arena's chunks never started ticking entities")
+            LockSupport.parkNanos(CHUNK_POLL_NANOS)
+        }
+        // What earlier tests left here, now that it is loaded: vanilla clears only the structure's own
+        // bounds, and a villager or item from a test that stood on this spot before would join in.
+        level.getEntitiesOfClass(Entity::class.java, AABB.encapsulatingFullBlocks(from.below(), to.above(2))) { it !is Player }
+            .forEach(Entity::discard)
         for (x in xs.first - 1..xs.last + 1) {
             for (z in zs.first - 1..zs.last + 1) {
                 helper.setBlock(x, 1, z, Blocks.STONE)
